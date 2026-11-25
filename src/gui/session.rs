@@ -115,6 +115,10 @@ impl AppState {
         F: FnOnce(mpsc::UnboundedSender<Progress>) -> Fut + Send + 'static,
         Fut: Future<Output = Result<(), LaunchError>>,
     {
+        if matches!(self.update, super::updater::Update::Downloading { .. }) {
+            moonglass::toast::show(ToastKind::Info, "Дождитесь обновления Blank Launcher.".to_owned(), cx);
+            return;
+        }
         let (tx, mut rx) = mpsc::unbounded_channel();
         let (done, abort) = runtime::pinned_abortable(move || job(tx));
         let mut session = Session::new();

@@ -146,7 +146,7 @@ fn io_error(path: &Path) -> impl FnOnce(std::io::Error) -> LaunchError + '_ {
 pub fn is_newer(version: &str) -> bool {
     let parse = |v: &str| semver::Version::parse(v.trim_start_matches('v')).ok();
     match (parse(version), parse(CURRENT)) {
-        (Some(new), Some(current)) => new > current,
+        (Some(new), Some(current)) => new.pre.is_empty() && new > current,
         _ => false,
     }
 }
@@ -244,7 +244,7 @@ pub async fn install(
 fn staging_dir(install: &Install) -> Result<PathBuf, LaunchError> {
     let target = match install {
         Install::Nix | Install::System => return Err(LaunchError::Managed),
-        Install::Installer(_) => return Ok(std::env::temp_dir().join("riven-update")),
+        Install::Installer(_) => return Ok(std::env::temp_dir().join(format!("blank-update-{}", std::process::id()))),
         Install::AppImage(p) | Install::Bundle(p) | Install::Portable(p) => p,
     };
     let parent = target.parent().unwrap_or(Path::new("."));
@@ -349,11 +349,21 @@ fn run_installer(setup: &Path, exe: &Path) -> Result<Relaunch, LaunchError> {
     let aside = set_aside(exe);
     let _ = std::fs::remove_file(&aside);
     std::fs::rename(exe, &aside).map_err(io_error(exe))?;
-    let status = Command::new(setup).arg("/S").status();
+    let mut command = Command::new(setup);
+    command.arg("/S");
+    #[cfg(windows)]
+    if let Some(parent) = exe.parent() {
+        use std::os::windows::process::CommandExt as _;
+        let mut directory = std::ffi::OsString::from("/D=");
+        directory.push(parent);
+        // NSIS requires /D to be the final, unquoted argument, even when its path has spaces.
+        command.raw_arg(directory);
+    }
+    let status = command.status();
     match status {
         Ok(s) if s.success() && exe.exists() => Ok(Relaunch(exe.to_owned())),
         outcome => {
-            let _ = std::fs::rename(&aside, exe);
+            std::fs::rename(&aside, exe).map_err(io_error(exe))?;
             Err(failed(match outcome {
                 Ok(s) => format!("the installer exited with {s}"),
                 Err(e) => format!("cannot run the installer: {e}"),
@@ -491,6 +501,7 @@ mod tests {
         assert!(!is_newer(CURRENT));
         assert!(!is_newer("0.0.1"));
         assert!(!is_newer("nightly"));
+        assert!(!is_newer("v99.0.0-beta.1"));
         let pre = format!("{CURRENT}-beta.1");
         assert!(!is_newer(&pre));
     }

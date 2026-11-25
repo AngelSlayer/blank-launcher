@@ -27,19 +27,34 @@ jobs:
           CARGO_PROFILE_RELEASE_LTO: thin
           CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 16
         run: |
-          cargo test --release --locked -p riven-launch --lib diagnostics::tests
+          cargo test --release --locked -p riven-launch --lib update::tests
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cargo build --release --locked
-      - name: Package
+      - name: Package and smoke-test the installer
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
+          $metadata = cargo metadata --locked --no-deps --format-version 1 | ConvertFrom-Json
+          $version = ($metadata.packages | Where-Object name -eq 'riven').version
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Invalid launcher version: $version" }
+          "BLANK_VERSION=$version" >> $env:GITHUB_ENV
           choco install nsis -y --no-progress
-          & "C:\Program Files (x86)\NSIS\makensis.exe" blank-setup.nsi
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Compress-Archive -LiteralPath target/release/riven.exe -DestinationPath Blank-Portable.zip
+          & "C:\Program Files (x86)\NSIS\makensis.exe" "/DVERSION=$version" blank-setup.nsi
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $testDir = Join-Path $env:RUNNER_TEMP 'Blank Launcher test install'
+          $setup = (Resolve-Path Blank-Setup.exe).Path
+          $installed = Start-Process -FilePath $setup -ArgumentList "/S /D=$testDir" -WindowStyle Hidden -Wait -PassThru
+          if ($installed.ExitCode -ne 0) { throw "Installer returned $($installed.ExitCode)" }
+          $actual = (Get-FileHash -LiteralPath "$testDir/riven.exe").Hash
+          if ($actual -ne (Get-FileHash target/release/riven.exe).Hash) { throw 'Installed binary hash mismatch' }
+          Copy-Item -LiteralPath Blank-Setup.exe -Destination Riven-Setup-x86_64.exe
+          Compress-Archive -LiteralPath target/release/riven.exe -DestinationPath riven-x86_64-windows.zip
+          Copy-Item -LiteralPath riven-x86_64-windows.zip -Destination Blank-Portable.zip
       - name: Publish Windows installer
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          tag="blank-${GITHUB_SHA:0:12}"
-          gh release create "$tag" Blank-Setup.exe Blank-Portable.zip --target "$GITHUB_SHA" --title "Blank Launcher" --notes "Автоотправка сводки ошибок Blank после выхода или сбоя. Управление в настройках лаунчера."
+          tag="v$BLANK_VERSION"
+          gh release create "$tag" Blank-Setup.exe Blank-Portable.zip Riven-Setup-x86_64.exe riven-x86_64-windows.zip --target "$GITHUB_SHA" --latest --title "Blank Launcher $BLANK_VERSION" --notes-file LAUNCHER-RELEASE.md

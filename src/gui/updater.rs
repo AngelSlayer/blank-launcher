@@ -83,6 +83,9 @@ impl AppState {
                         before
                     }
                 };
+                if !manual && !s.settings.manual_updates && matches!(s.update, Update::Available(_)) {
+                    s.install_update(cx);
+                }
                 cx.notify();
             });
         })
@@ -91,6 +94,9 @@ impl AppState {
 
     /// Downloads the found release, puts it in place and restarts into it.
     pub fn install_update(&mut self, cx: &mut Context<Self>) {
+        if !Install::detect().self_updates() || self.sessions.values().any(super::session::Session::busy) {
+            return;
+        }
         let release = match &self.update {
             Update::Available(release) | Update::Failed { release, .. } => release.clone(),
             _ => return,
@@ -164,6 +170,7 @@ pub fn title_button(cx: &App) -> Option<AnyElement> {
         Update::Downloading { done, total, .. } if *total > 0 => {
             t!("update.percent", percent = done * 100 / total).to_string()
         }
+        Update::Downloading { .. } => t!("update.installing").to_string(),
         _ => t!("update.button").to_string(),
     };
     Some(

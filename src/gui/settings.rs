@@ -1147,8 +1147,8 @@ fn updates(cx: &App) -> AnyElement {
             cx,
         ))
         .row(setting_row(
-            t!("update.auto").to_string(),
-            Some(t!("update.auto_hint").into()),
+            "Автообновление лаунчера".to_owned(),
+            Some("Скачивать и устанавливать новые версии Blank Launcher при открытии.".into()),
             Switch::new("auto-update", automatic)
                 .large()
                 .accessible(t!("update.auto").to_string())
