@@ -32,6 +32,9 @@ pub struct Settings {
     /// The first-run setup was finished or skipped.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub onboarded: bool,
+    /// Set only after the player has seen the Blank diagnostics notice.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub blank_diagnostics: Option<bool>,
 }
 
 /// The developer section's panels: the bottom one (Problems, Output, Game log) and the side ones.

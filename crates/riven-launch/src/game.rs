@@ -373,6 +373,7 @@ pub async fn play(
     let launched = SystemTime::now();
     let game = riven_game::launch(&dirs, &prepared, &launch)?;
     let pid = game.pid();
+    crate::diagnostics::begin(store, id, launched);
     report(Progress::Started { pid, played: 0 });
     let since = Instant::now();
     let marker = Running {
@@ -405,6 +406,7 @@ pub async fn play(
         .map(|t| t.iter().cloned().collect())
         .unwrap_or_default();
     let crash = diagnose(game_dir, launched, code, output).await;
+    crate::diagnostics::finished(store, id, Some(played), code).await;
     report(Progress::Exited {
         code,
         played,
@@ -507,6 +509,7 @@ pub async fn watch(
     finish(store, id, played, ended, &settings).await;
     let launched = SystemTime::UNIX_EPOCH + Duration::from_secs(started);
     let crash = diagnose(store.game_dir(id), launched, None, Vec::new()).await;
+    crate::diagnostics::finished(store, id, Some(played), None).await;
     report(Progress::Exited {
         code: None,
         played,

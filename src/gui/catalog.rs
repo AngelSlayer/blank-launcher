@@ -83,6 +83,24 @@ impl Render for Catalog {
         let mut content = v_flex().gap(px(14.)).child(
             div().text_size(px(24.)).child("Наши сборки"),
         );
+        let diagnostics = state.read(cx).settings.blank_diagnostics;
+        content = content.child(
+            v_flex().gap(px(6.)).p(px(12.))
+                .child("Диагностика Blank")
+                .child(if diagnostics.is_none() {
+                    "При установке или запуске Blank включается автоотправка сводки ошибок за сессию. В ней только категории, число повторов и время; без полных логов, чата и скриншотов."
+                } else {
+                    "После выхода или сбоя можно отправлять сводку ошибок Blank. Полные логи, чат и скриншоты остаются на ПК."
+                })
+                .child(Button::new("blank-diagnostics-setting").outline()
+                    .label(if diagnostics == Some(false) { "Включить автоотправку" } else { "Отключить автоотправку" })
+                    .on_click(cx.listener(move |_, _, _, cx| {
+                        AppState::global(cx).update(cx, |s, cx| {
+                            s.update_settings(|settings| settings.blank_diagnostics = Some(diagnostics == Some(false)), cx);
+                        });
+                        cx.notify();
+                    })),
+        );
         match &self.0 {
             CatalogState::Loading => content = content.child("Загрузка каталога…"),
             CatalogState::Unavailable => {
@@ -106,6 +124,11 @@ impl Render for Catalog {
                             .label(if installed { "Играть" } else { "Установить" })
                             .on_click(move |_, window, cx| {
                                 let state = AppState::global(cx);
+                                if id == "blank-1" && state.read(cx).settings.blank_diagnostics.is_none() {
+                                    state.update(cx, |s, cx| {
+                                        s.update_settings(|settings| settings.blank_diagnostics = Some(true), cx);
+                                    });
+                                }
                                 if state.read(cx).packs.contains_key(&id) {
                                     state.update(cx, |s, cx| s.navigate(Route::Instance(id.clone()), cx));
                                     launch_bar::launch(&id, window, cx);

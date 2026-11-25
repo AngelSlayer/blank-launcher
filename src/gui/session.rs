@@ -309,6 +309,10 @@ impl AppState {
         let ids: Vec<String> = self.instances.iter().map(|(id, _)| id.clone()).collect();
         for id in ids {
             let Some(running) = game::running(&store, &id) else {
+                let store = store.clone();
+                super::runtime::spawn(async move {
+                    riven_launch::diagnostics::finished(&store, &id, None, None).await;
+                });
                 continue;
             };
             let store = store.clone();

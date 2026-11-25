@@ -159,6 +159,43 @@ pub(super) fn open(view: gpui::AnyView, width: f32, cx: &mut App) {
     AppState::global(cx).update(cx, |s, cx| s.open_modal(view, px(width), cx));
 }
 
+struct BlankDiagnosticsNotice {
+    id: String,
+    account: riven_format::Account,
+}
+
+impl BlankDiagnosticsNotice {
+    fn start(&self, enabled: bool, cx: &mut App) {
+        AppState::global(cx).update(cx, |s, cx| {
+            s.update_settings(|settings| settings.blank_diagnostics = Some(enabled), cx);
+            s.close_modal(cx);
+            s.play(&self.id, self.account.clone(), cx);
+        });
+    }
+}
+
+impl Render for BlankDiagnosticsNotice {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        dialog_shell(
+            "Диагностика Blank",
+            "После выхода или сбоя отправляется сводка ошибок за сессию.",
+            div().child("В сводке только категории, число повторов и время. Полные логи, чат и скриншоты остаются на ПК. Автоотправку можно отключить в настройках."),
+            vec![
+                Button::new("blank-diagnostics-skip").outline().label("Играть без отчётов")
+                    .on_click(cx.listener(|this, _, _, cx| this.start(false, cx))),
+                Button::new("blank-diagnostics-play").primary().label("Играть")
+                    .on_click(cx.listener(|this, _, _, cx| this.start(true, cx))),
+            ],
+            cx,
+        )
+    }
+}
+
+pub(super) fn blank_diagnostics_notice(id: String, account: riven_format::Account, cx: &mut App) {
+    let view = cx.new(|_| BlankDiagnosticsNotice { id, account });
+    open(view.into(), 520., cx);
+}
+
 /// The form behind "Add offline account": just a player name.
 pub struct AddOffline {
     name: Entity<InputState>,

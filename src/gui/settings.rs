@@ -611,6 +611,15 @@ impl SettingsView {
                         }),
                     cx,
                 ))
+                .row(setting_row(
+                    "Диагностика Blank".to_owned(),
+                    Some("Автоматически отправлять сводку ошибок после выхода или сбоя. Полные логи, чат и скриншоты остаются на ПК.".into()),
+                    Switch::new("blank-diagnostics", s.blank_diagnostics == Some(true))
+                        .large()
+                        .accessible("Диагностика Blank".to_owned())
+                        .on_change(|on, _, cx| write(cx, |settings| settings.blank_diagnostics = Some(on))),
+                    cx,
+                ))
                 .into_any_element(),
             theme_picker(
                 t!("settings.dark_theme").into(),

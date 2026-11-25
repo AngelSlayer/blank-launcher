@@ -123,6 +123,12 @@ pub fn launch(id: &str, window: &mut Window, cx: &mut App) {
         return;
     }
     match selected_account(st) {
+        Some(account)
+            if st.settings.blank_diagnostics.is_none()
+                && st.store.as_ref().is_some_and(|store| riven_launch::diagnostics::is_blank(store, id)) =>
+        {
+            super::dialogs::blank_diagnostics_notice(id.to_owned(), account, cx);
+        }
         Some(account) => state.update(cx, |s, cx| s.play(id, account, cx)),
         None => super::dialogs::open_add_offline(window, cx),
     }

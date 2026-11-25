@@ -84,6 +84,7 @@ impl RivenApp {
         app.sync(window, cx);
         cx.defer(super::welcome::open_if_new);
         cx.defer(super::updater::check_at_startup);
+        super::runtime::spawn(riven_launch::diagnostics::flush());
         AppState::global(cx).update(cx, |s, cx| {
             s.load_skins(cx);
             s.adopt_running(cx);

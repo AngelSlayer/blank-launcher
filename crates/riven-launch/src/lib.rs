@@ -1,5 +1,6 @@
 pub mod accounts;
 pub mod crash;
+pub mod diagnostics;
 pub mod game;
 pub mod instances;
 pub mod java;
