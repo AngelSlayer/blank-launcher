@@ -99,7 +99,7 @@ impl Render for Catalog {
                             s.update_settings(|settings| settings.blank_diagnostics = Some(diagnostics == Some(false)), cx);
                         });
                         cx.notify();
-                    })),
+                    }))),
         );
         match &self.0 {
             CatalogState::Loading => content = content.child("Загрузка каталога…"),
