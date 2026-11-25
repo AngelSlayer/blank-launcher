@@ -110,7 +110,7 @@ impl Render for Catalog {
                                     state.update(cx, |s, cx| s.navigate(Route::Instance(id.clone()), cx));
                                     launch_bar::launch(&id, window, cx);
                                 } else {
-                                    new_instance::open_link(&link, window, cx);
+                                    new_instance::install_catalog_link(&link, window, cx);
                                 }
                             })));
                 }

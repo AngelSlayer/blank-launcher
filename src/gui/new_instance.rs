@@ -108,6 +108,7 @@ pub struct NewInstance {
     icon: Option<(PathBuf, Vec<u8>)>,
 
     link: Entity<InputState>,
+    catalog_link: Option<String>,
     prepared: Option<Prepared>,
     groups: BTreeMap<String, bool>,
 
@@ -307,6 +308,7 @@ impl NewInstance {
             loader_serial: 0,
             icon: None,
             link,
+            catalog_link: None,
             prepared: None,
             groups: BTreeMap::new(),
             foreign: None,
@@ -597,7 +599,10 @@ impl NewInstance {
     }
 
     fn check_link(&mut self, cx: &mut Context<Self>) {
-        let link = self.link.read(cx).value().trim().to_string();
+        let link = self
+            .catalog_link
+            .clone()
+            .unwrap_or_else(|| self.link.read(cx).value().trim().to_string());
         if link.is_empty() {
             return;
         }
@@ -621,7 +626,14 @@ impl NewInstance {
                 })
             },
             Some(rx),
-            |this, prepared, _| this.show_prepared(prepared),
+            |this, prepared, cx| {
+                this.show_prepared(prepared);
+                if this.catalog_link.is_some()
+                    && let Some(prepared) = this.prepared.take()
+                {
+                    this.finish(prepared, None, cx);
+                }
+            },
             cx,
         );
     }
@@ -872,6 +884,8 @@ impl NewInstance {
     fn finish(&mut self, prepared: Prepared, title: Option<String>, cx: &mut Context<Self>) {
         let state = AppState::global(cx);
         let Some(store) = state.read(cx).store.clone() else {
+            self.error = Some("Не удалось открыть папку профилей.".into());
+            cx.notify();
             return;
         };
         let Prepared {
@@ -2121,6 +2135,51 @@ impl Render for NewInstance {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let c = cx.theme().colors;
         let height = (f32::from(window.viewport_size().height) - 300.).clamp(240., 560.);
+        let status: AnyElement = match (&self.busy, &self.error) {
+            (Some(text), _) => h_flex()
+                .gap(px(8.))
+                .text_color(c.muted)
+                .child(motion::spinner(
+                    "new-instance-busy",
+                    icon(IconName::Loader, c.muted).size(px(14.)),
+                    cx,
+                ))
+                .child(text.clone())
+                .into_any_element(),
+            (None, Some(error)) => div()
+                .text_color(c.warn)
+                .line_height(relative(1.4))
+                .child(error.clone())
+                .into_any_element(),
+            _ => div().into_any_element(),
+        };
+
+        let busy = self.busy.is_some();
+        let cancel = match self.abort.clone() {
+            Some(abort) => Button::new("stop")
+                .outline()
+                .size(ButtonSize::Md)
+                .label(t!("common.stop"))
+                .on_click(move |_, _, _| abort.abort()),
+            None => Button::new("cancel")
+                .outline()
+                .size(ButtonSize::Md)
+                .label(t!("common.cancel"))
+                .on_click(|_, _, cx| AppState::global(cx).update(cx, |s, cx| s.close_modal(cx))),
+        };
+        if self.catalog_link.is_some() {
+            let mut buttons = vec![cancel];
+            if !busy {
+                buttons.push(
+                    Button::new("retry-catalog-install")
+                        .primary()
+                        .size(ButtonSize::Md)
+                        .label("Повторить")
+                        .on_click(cx.listener(|this, _, _, cx| this.check_link(cx))),
+                );
+            }
+            return dialog_shell("Установка сборки", "", status, buttons, cx);
+        }
         let view = cx.entity().downgrade();
         let selected = MODES.iter().position(|m| *m == self.mode).unwrap_or(0);
         let tabs = Tabs::new(
@@ -2149,42 +2208,6 @@ impl Render for NewInstance {
             Mode::Custom => self.render_custom(height, cx),
             Mode::Import => self.render_import(height, cx),
             Mode::Launchers => self.render_launchers(height, cx),
-        };
-        let status: AnyElement = match (&self.busy, &self.error) {
-            (Some(text), _) => h_flex()
-                .gap(px(8.))
-                .text_color(c.muted)
-                .child(motion::spinner(
-                    "new-instance-busy",
-                    icon(IconName::Loader, c.muted).size(px(14.)),
-                    cx,
-                ))
-                .child(text.clone())
-                .into_any_element(),
-            (None, Some(error)) => div()
-                .text_color(c.warn)
-                .line_height(relative(1.4))
-                .child(error.clone())
-                .into_any_element(),
-            _ => div().into_any_element(),
-        };
-        let body = v_flex()
-            .gap(px(14.))
-            .child(h_flex().child(tabs))
-            .child(content)
-            .child(div().min_h(px(22.)).child(status));
-        let busy = self.busy.is_some();
-        let cancel = match self.abort.clone() {
-            Some(abort) => Button::new("stop")
-                .outline()
-                .size(ButtonSize::Md)
-                .label(t!("common.stop"))
-                .on_click(move |_, _, _| abort.abort()),
-            None => Button::new("cancel")
-                .outline()
-                .size(ButtonSize::Md)
-                .label(t!("common.cancel"))
-                .on_click(|_, _, cx| AppState::global(cx).update(cx, |s, cx| s.close_modal(cx))),
         };
         let action = match self.mode {
             Mode::Modrinth => Button::new("install-modpack")
@@ -2224,6 +2247,11 @@ impl Render for NewInstance {
                 .disabled(busy || self.foreign_pick.is_none())
                 .on_click(cx.listener(|this, _, _, cx| this.import_foreign(cx))),
         };
+        let body = v_flex()
+            .gap(px(14.))
+            .child(h_flex().child(tabs))
+            .child(content)
+            .child(div().min_h(px(22.)).child(status));
         dialog_shell(
             t!("new_instance.title"),
             t!("new_instance.subtitle"),
@@ -2240,6 +2268,17 @@ pub fn open(window: &mut Window, cx: &mut App) {
 
 pub fn open_mode(mode: Mode, window: &mut Window, cx: &mut App) {
     let form = cx.new(|cx| NewInstance::new(mode, window, cx));
+    super::dialogs::open(form.into(), WIDTH, cx);
+}
+
+/// Installs a catalog pack with its default groups, showing only progress and errors.
+pub(super) fn install_catalog_link(link: &str, window: &mut Window, cx: &mut App) {
+    let form = cx.new(|cx| {
+        let mut form = NewInstance::new(Mode::Import, window, cx);
+        form.catalog_link = Some(link.to_owned());
+        form.check_link(cx);
+        form
+    });
     super::dialogs::open(form.into(), WIDTH, cx);
 }
 
