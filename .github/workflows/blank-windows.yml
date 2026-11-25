@@ -1,0 +1,39 @@
+name: Blank Launcher for Windows
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: blank-windows
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Install Rust
+        run: rustup toolchain install 1.98.0 --profile minimal
+      - name: Build
+        run: cargo build --release --locked
+      - name: Package
+        shell: pwsh
+        run: |
+          choco install nsis -y --no-progress
+          & "C:\Program Files (x86)\NSIS\makensis.exe" blank-setup.nsi
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Compress-Archive -LiteralPath target/release/riven.exe -DestinationPath Blank-Portable.zip
+      - name: Publish Windows installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          tag="blank-${GITHUB_SHA:0:12}"
+          gh release create "$tag" Blank-Setup.exe Blank-Portable.zip --target "$GITHUB_SHA" --title "Blank Launcher" --notes "Riven-based Windows launcher with the Blank and Test catalog."

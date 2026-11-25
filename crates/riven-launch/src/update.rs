@@ -7,8 +7,8 @@ use sha2::{Digest, Sha256};
 
 use crate::LaunchError;
 
-const RELEASES: &str = "https://api.github.com/repos/BX-Team/Riven/releases";
-const LATEST: &str = "https://api.github.com/repos/BX-Team/Riven/releases/latest";
+const RELEASES: &str = "https://api.github.com/repos/AngelSlayer/blank-launcher/releases";
+const LATEST: &str = "https://api.github.com/repos/AngelSlayer/blank-launcher/releases/latest";
 pub const CURRENT: &str = env!("CARGO_PKG_VERSION");
 const BUNDLE: &str = "Riven Launcher.app";
 /// Set on the updated process, which then waits for this one to let go of what it held.

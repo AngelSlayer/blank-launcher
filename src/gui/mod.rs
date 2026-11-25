@@ -1,6 +1,7 @@
 mod add_mods;
 mod app;
 mod assets;
+mod catalog;
 mod changes;
 mod clipboard;
 mod code_editor;

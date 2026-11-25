@@ -13,6 +13,7 @@ pub enum Route {
     Instance(String),
     Settings,
     Developer,
+    Catalog,
     Empty,
 }
 
@@ -138,13 +139,7 @@ impl AppState {
             .as_ref()
             .and_then(|s| s.list().map_err(&mut note).ok())
             .unwrap_or_default();
-        let route = settings
-            .selected_instance
-            .clone()
-            .filter(|id| instances.iter().any(|(i, _)| i == id))
-            .or_else(|| instances.first().map(|(id, _)| id.clone()))
-            .map(Route::Instance)
-            .unwrap_or(Route::Empty);
+        let route = Route::Catalog;
         let (packs, pack_changes) = read_packs(store.as_ref(), &instances);
         let icons = read_icons(store.as_ref(), &instances);
         Self {

@@ -45,6 +45,7 @@ pub struct RivenApp {
     state: Entity<AppState>,
     instance: Option<Entity<InstanceView>>,
     settings: Entity<SettingsView>,
+    catalog: Entity<super::catalog::Catalog>,
     /// Created the first time the developer section opens.
     dev: Option<Entity<DevView>>,
     /// The route seen last, so settings open on their first page each time.
@@ -72,6 +73,7 @@ impl RivenApp {
             state,
             instance: None,
             settings,
+            catalog: cx.new(super::catalog::Catalog::new),
             dev: None,
             route: Route::Empty,
             focus: cx.focus_handle(),
@@ -160,7 +162,7 @@ impl RivenApp {
     /// Only from the library: settings and the developer section hide the sidebar it belongs to.
     fn new_instance(&mut self, _: &NewInstance, window: &mut Window, cx: &mut Context<Self>) {
         let state = self.state.read(cx);
-        if state.modal.is_none() && matches!(state.route, Route::Instance(_) | Route::Empty) {
+        if state.modal.is_none() && matches!(state.route, Route::Instance(_) | Route::Empty | Route::Catalog) {
             super::new_instance::open(window, cx);
         }
     }
@@ -272,6 +274,7 @@ impl RivenApp {
             window,
             cx,
         );
+        let catalog_handle = self.state.clone();
         let settings_handle = self.state.clone();
         let dev_handle = self.state.clone();
         v_flex()
@@ -284,6 +287,12 @@ impl RivenApp {
             .px(px(8.))
             .py(px(12.))
             .gap(px(2.))
+            .child(
+                nav_row("open-catalog", self.route == Route::Catalog, window, cx)
+                    .child(icon(IconName::Package, c.text2))
+                    .child("Наши сборки")
+                    .on_click(move |_, _, cx| Self::navigate(&catalog_handle, Route::Catalog, cx)),
+            )
             .child(caption(t!("sidebar.instances"), cx))
             .child(
                 div()
@@ -319,6 +328,7 @@ impl RivenApp {
                 Some(view) => view.clone().cached(full()).into_any_element(),
                 None => div().into_any_element(),
             },
+            Route::Catalog => self.catalog.clone().into_any_element(),
             Route::Settings => self.settings.clone().cached(full()).into_any_element(),
             Route::Developer => match &self.dev {
                 Some(view) => view.clone().cached(full()).into_any_element(),
@@ -550,7 +560,7 @@ impl Render for RivenApp {
             }
             _ => None,
         };
-        let mut title_bar = moonglass::TitleBar::new("Riven Launcher").logo(super::assets::LOGO);
+        let mut title_bar = moonglass::TitleBar::new("Blank Launcher").logo(super::assets::LOGO);
         if let Some(update) = super::updater::title_button(cx) {
             title_bar = title_bar.actions(update);
         }

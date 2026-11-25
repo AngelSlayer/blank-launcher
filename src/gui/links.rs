@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 use gpui::App;
 
 /// The loopback port the running launcher listens on for links from later launches.
-const PORT: u16 = 47655;
+const PORT: u16 = 47656;
 const HELLO: &str = "riven-open";
 
 /// What the system asked Riven to open.
