@@ -117,7 +117,10 @@ fn log_clock(timestamp: &str) -> Option<u64> {
 fn event_code(message: &str) -> Option<&'static str> {
     if message.contains("error during loading of villager trades") {
         Some("villager_trades")
-    } else if message.contains("recipe") && ["error loading", "failed to parse", "failed to load", "could not load"].iter().any(|part| message.contains(part)) {
+    } else if [
+        "error loading recipe", "failed to parse recipe", "failed to load recipe", "could not load recipe",
+        "error parsing recipe", "error parsing a recipe",
+    ].iter().any(|part| message.contains(part)) {
         Some("recipe_load")
     } else if ["error reading optional pack metadata", "failed to load resource", "failed to reload resource"].iter().any(|part| message.contains(part)) {
         Some("resource_load")
@@ -292,6 +295,16 @@ pub async fn flush() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn class_loading_warnings_are_not_recipe_failures() {
+        let log = "[21:11:39] [main/WARN] [mixin/]: Error loading class: cc/cassian/rrv/common/recipe/RecipeViewMenu\n\
+                   [21:11:40] [Server thread/ERROR]: Failed to parse recipe example:machine_recipe\n";
+        let mut summary = LogSummary::default();
+        summary.read(log.as_bytes());
+        assert_eq!(summary.events.len(), 1);
+        assert_eq!(summary.events[&("recipe_load", "error")].count, 1);
+    }
 
     #[test]
     fn groups_warnings_from_both_log_formats_across_midnight() {

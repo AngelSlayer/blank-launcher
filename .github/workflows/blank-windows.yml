@@ -27,7 +27,7 @@ jobs:
           CARGO_PROFILE_RELEASE_LTO: thin
           CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 16
         run: |
-          cargo test --release --locked -p riven-launch --lib update::tests
+          cargo test --release --locked -p riven-launch --lib
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cargo build --release --locked
       - name: Package and smoke-test the installer

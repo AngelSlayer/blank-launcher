@@ -2,7 +2,7 @@
 members = ["crates/*"]
 
 [workspace.package]
-version = "1.3.4"
+version = "1.3.5"
 authors = ["BX Team"]
 edition = "2024"
 rust-version = "1.98"
