@@ -83,13 +83,14 @@ impl RivenApp {
         app.focus.focus(window, cx);
         app.sync(window, cx);
         cx.defer(super::welcome::open_if_new);
-        cx.defer(super::updater::check_at_startup);
+
         super::runtime::spawn(riven_launch::diagnostics::flush());
         AppState::global(cx).update(cx, |s, cx| {
             s.load_skins(cx);
             s.adopt_running(cx);
             s.check_modpacks(cx);
         });
+        super::updater::check_at_startup(cx);
         app
     }
 
@@ -545,6 +546,9 @@ pub fn placeholder(name: IconName, title: SharedString, hint: SharedString, cx: 
 impl Render for RivenApp {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         moonglass::theme::tick(window, cx);
+        if let Some(screen) = super::updater::blocking_screen(&self.state, window, cx) {
+            return screen;
+        }
         let c = cx.theme().colors;
         let st = self.state.read(cx);
         let route = st.route.clone();
@@ -646,5 +650,6 @@ impl Render for RivenApp {
                     cx,
                 ))
             })
+            .into_any_element()
     }
 }

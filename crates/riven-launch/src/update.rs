@@ -168,6 +168,7 @@ pub async fn release(version: &str) -> Result<Option<Release>, LaunchError> {
 async fn fetch(url: &str) -> Result<Option<Release>, LaunchError> {
     let response = riven_sources::client()
         .get(url)
+        .timeout(std::time::Duration::from_secs(8))
         .header(reqwest::header::ACCEPT, "application/vnd.github+json")
         .send()
         .await

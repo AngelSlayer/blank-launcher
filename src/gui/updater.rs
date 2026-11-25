@@ -73,17 +73,15 @@ impl AppState {
                     }
                     Err(e) => {
                         tracing::warn!("update check failed: {e}");
-                        if manual {
-                            moonglass::toast::show(
-                                ToastKind::Error,
-                                t!("update.check_failed", error = e),
-                                cx,
-                            );
-                        }
+                        moonglass::toast::show(
+                            ToastKind::Error,
+                            t!("update.check_failed", error = e),
+                            cx,
+                        );
                         before
                     }
                 };
-                if !manual && !s.settings.manual_updates && matches!(s.update, Update::Available(_)) {
+                if matches!(s.update, Update::Available(_)) {
                     s.install_update(cx);
                 }
                 cx.notify();
@@ -153,13 +151,74 @@ impl AppState {
     }
 }
 
-/// Looks for an update at startup unless the user turned that off.
+/// Check before showing the library, including when older preferences disabled updates.
 pub fn check_at_startup(cx: &mut App) {
-    let state = AppState::global(cx);
-    if cfg!(debug_assertions) || state.read(cx).settings.manual_updates {
-        return;
+    if !cfg!(debug_assertions) {
+        AppState::global(cx).update(cx, |s, cx| s.check_update(false, cx));
     }
-    state.update(cx, |s, cx| s.check_update(false, cx));
+}
+
+pub(super) fn blocking_screen(
+    state: &gpui::Entity<AppState>,
+    window: &mut Window,
+    cx: &mut App,
+) -> Option<AnyElement> {
+    let update = state.read(cx).update.clone();
+    let (title, detail, fraction, failed) = match update {
+        Update::Idle => return None,
+        Update::Checking => (
+            "Проверяем обновления".to_owned(),
+            "Проверяем последнюю версию Blank Launcher на GitHub.".to_owned(),
+            None,
+            false,
+        ),
+        Update::Available(release) => (
+            format!("Доступен Blank Launcher {}", release.version),
+            "Обновление начнётся после завершения запущенной игры или установки сборки.".to_owned(),
+            None,
+            false,
+        ),
+        Update::Downloading { release, done, total } => {
+            let fraction = (total > 0).then(|| (done as f32 / total as f32).clamp(0., 1.));
+            let detail = if total > 0 && done >= total {
+                "Файл скачан. Проверяем и устанавливаем обновление.".to_owned()
+            } else if let Some(fraction) = fraction {
+                format!("Скачиваем обновление… {:.0}%", fraction * 100.)
+            } else {
+                "Начинаем скачивание обновления…".to_owned()
+            };
+            (format!("Обновление до {}", release.version), detail, fraction, false)
+        }
+        Update::Failed { release, error } => (
+            format!("Не удалось обновиться до {}", release.version),
+            error.to_string(),
+            None,
+            true,
+        ),
+    };
+    let c = cx.theme().colors;
+    let mut panel = v_flex().w_full().max_w(px(480.)).gap(px(16.))
+        .p(px(20.))
+        .child(div().text_size(px(24.)).child(title))
+        .child(div().text_color(c.muted).child(detail));
+    if failed {
+        let state = state.clone();
+        panel = panel.child(
+            Button::new("retry-required-update")
+                .primary()
+                .label("Повторить загрузку")
+                .on_click(move |_, _, cx| state.update(cx, |s, cx| s.install_update(cx))),
+        );
+    } else {
+        panel = panel.child(progress_bar("required-update-progress", fraction, window, cx));
+    }
+    Some(
+        v_flex().size_full().bg(c.bg)
+            .child(moonglass::TitleBar::new("Blank Launcher").logo(super::assets::LOGO))
+            .child(div().flex_1().flex().items_center().justify_center().child(panel))
+            .children(moonglass::chrome::resize_edges(window))
+            .into_any_element(),
+    )
 }
 
 /// The title bar button that appears once a new version is found.

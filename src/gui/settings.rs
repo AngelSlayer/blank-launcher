@@ -1123,7 +1123,7 @@ fn updates(cx: &App) -> AnyElement {
         ),
     };
     let checking = matches!(update, Update::Checking);
-    let automatic = !prefs(cx).manual_updates;
+
     Section::new()
         .row(setting_row(
             t!("update.title").to_string(),
@@ -1146,15 +1146,7 @@ fn updates(cx: &App) -> AnyElement {
                 .on_click(|_, _, cx| super::updater::open_notes(cx)),
             cx,
         ))
-        .row(setting_row(
-            "Автообновление лаунчера".to_owned(),
-            Some("Скачивать и устанавливать новые версии Blank Launcher при открытии.".into()),
-            Switch::new("auto-update", automatic)
-                .large()
-                .accessible(t!("update.auto").to_string())
-                .on_change(|v, _, cx| write(cx, |s| s.manual_updates = !v)),
-            cx,
-        ))
+
         .into_any_element()
 }
 

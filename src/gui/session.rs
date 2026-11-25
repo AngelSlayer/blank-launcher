@@ -115,7 +115,7 @@ impl AppState {
         F: FnOnce(mpsc::UnboundedSender<Progress>) -> Fut + Send + 'static,
         Fut: Future<Output = Result<(), LaunchError>>,
     {
-        if matches!(self.update, super::updater::Update::Downloading { .. }) {
+        if !matches!(self.update, super::updater::Update::Idle) {
             moonglass::toast::show(ToastKind::Info, "Дождитесь обновления Blank Launcher.".to_owned(), cx);
             return;
         }
@@ -272,6 +272,9 @@ impl AppState {
                         cx.notify();
                     } else {
                         s.ticking = false;
+                        if matches!(s.update, super::updater::Update::Available(_)) {
+                            s.install_update(cx);
+                        }
                     }
                     busy
                 });
