@@ -25,7 +25,7 @@ pub fn open(id: &str, version: String, changes: Option<Changes>, cx: &mut App) {
                 .flatten()
         })
         .map(|state| state.source);
-    let view = cx.new(|cx| {
+    let view = cx.new(|cx: &mut Context<ChangesDialog>| {
         let mut dialog = ChangesDialog {
             version,
             changes: changes.unwrap_or_default(),
