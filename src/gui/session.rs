@@ -135,6 +135,9 @@ impl AppState {
                 let alive = this.update(cx, |s, cx| {
                     if let Some(session) = s.sessions.get_mut(&id) {
                         let exited = batch.iter().any(|p| matches!(p, Progress::Exited { .. }));
+                        let pack_changed = batch.iter().any(|p| {
+                            matches!(p, Progress::Installed { .. } | Progress::Updated { .. })
+                        });
                         let key_changed = batch.iter().find_map(|p| match p {
                             Progress::KeyChanged { url } => Some(url.clone()),
                             _ => None,
@@ -159,7 +162,7 @@ impl AppState {
                         for text in news {
                             moonglass::toast::show(ToastKind::Info, text.to_string(), cx);
                         }
-                        if exited {
+                        if exited || pack_changed {
                             s.reload_instances(cx);
                         }
                         if changed {

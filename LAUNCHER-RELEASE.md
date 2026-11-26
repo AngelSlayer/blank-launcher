@@ -1,11 +1,9 @@
-# Blank Launcher 1.3.5
+# Blank Launcher 1.3.6
 
 **Русский**
 
-- Ченджлог сборки доступен в нижней панели лаунчера во время игры.
-- Предупреждения о загрузке классов совместимости больше не записываются в категорию ошибок загрузки рецептов.
+- Версия сборки и ченджлог обновляются в интерфейсе сразу после установки обновления, даже когда Minecraft уже запускается.
 
 **English**
 
-- The modpack changelog stays available in the launch bar while Minecraft is running.
-- Compatibility class loading warnings are no longer counted as recipe loading errors.
+- The modpack version and changelog refresh as soon as the update is installed, even while Minecraft is starting.
