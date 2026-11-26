@@ -892,6 +892,8 @@ crash:
 changes:
   open: "What's new"
   title: "What's new in %{version}"
+  history: "Recent releases"
+  loading: "Loading release history…"
   from: "Updated from %{version}"
   added: "Added"
   updated: "Updated"

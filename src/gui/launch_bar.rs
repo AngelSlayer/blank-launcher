@@ -564,7 +564,8 @@ pub fn render(
                 .min_w_0()
                 .gap(px(8.))
                 .child(div().flex_1().min_w_0().child(status))
-                .when_some(pack.zip(changes), |row, (version, changes)| {
+                .when_some(pack, |row, version| {
+                    let id = id.to_owned();
                     row.child(
                         div().flex_none().child(
                             Button::new(SharedString::from(format!("pack-changes-{id}")))
@@ -572,7 +573,7 @@ pub fn render(
                                 .size(ButtonSize::Xs)
                                 .label(t!("changes.open"))
                                 .on_click(move |_, _, cx| {
-                                    super::changes::open(version.clone(), changes.clone(), cx)
+                                    super::changes::open(&id, version.clone(), changes.clone(), cx)
                                 }),
                         ),
                     )

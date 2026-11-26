@@ -890,6 +890,8 @@ crash:
   disabled: "%{name} отключён; включить его снова можно в «Модах»"
   open_report: "Открыть отчёт"
 changes:
+  history: "Последние версии"
+  loading: "Загрузка истории изменений…"
   open: "Что нового"
   title: "Что нового в %{version}"
   from: "Обновлено с %{version}"
