@@ -325,13 +325,13 @@ fn amount(stage: Stage, done: u64, total: u64) -> String {
     }
 }
 
-/// `pack` is the installed version, a newer one and what the last update changed;
+/// `pack` is the installed version and an available update;
 /// `notice` and `crash` come from the last session.
 fn status(
     id: &str,
     phase: Option<Phase>,
     (notice, crash): (Option<SharedString>, Option<riven_launch::crash::Diagnosis>),
-    pack: Option<(String, Option<String>, Option<riven_format::Changes>)>,
+    pack: Option<(String, Option<String>)>,
     played: Option<String>,
     window: &mut Window,
     cx: &mut App,
@@ -345,30 +345,16 @@ fn status(
             .child(text)
     };
     let idle = match (pack, played) {
-        (Some((version, Some(newer), _)), _) => line(
+        (Some((version, Some(newer))), _) => line(
             format!("{version} — {}", t!("launch.pack_newer", version = newer)),
             c.accent,
         )
         .into_any_element(),
-        (Some((version, None, changes)), _) => h_flex()
-            .min_w_0()
-            .gap(px(8.))
-            .child(line(
-                format!("{version} — {}", t!("launch.pack_current")),
-                c.ok,
-            ))
-            .when_some(changes, |row, changes| {
-                row.child(
-                    Button::new(SharedString::from(format!("pack-changes-{id}")))
-                        .ghost()
-                        .size(ButtonSize::Xs)
-                        .label(t!("changes.open"))
-                        .on_click(move |_, _, cx| {
-                            super::changes::open(version.clone(), changes.clone(), cx)
-                        }),
-                )
-            })
-            .into_any_element(),
+        (Some((version, None)), _) => line(
+            format!("{version} — {}", t!("launch.pack_current")),
+            c.ok,
+        )
+        .into_any_element(),
         (None, Some(played)) => line(played, c.muted).into_any_element(),
         (None, None) => div().into_any_element(),
     };
@@ -527,7 +513,7 @@ pub fn render(
             id,
             phase,
             (notice, crash),
-            pack.map(|p| (p, newer.clone(), changes)),
+            pack.clone().map(|p| (p, newer.clone())),
             played(&instance),
             window,
             cx,
@@ -572,7 +558,26 @@ pub fn render(
                         ),
                 ),
         )
-        .child(div().flex_1().min_w_0().child(status))
+        .child(
+            h_flex()
+                .flex_1()
+                .min_w_0()
+                .gap(px(8.))
+                .child(div().flex_1().min_w_0().child(status))
+                .when_some(pack.zip(changes), |row, (version, changes)| {
+                    row.child(
+                        div().flex_none().child(
+                            Button::new(SharedString::from(format!("pack-changes-{id}")))
+                                .ghost()
+                                .size(ButtonSize::Xs)
+                                .label(t!("changes.open"))
+                                .on_click(move |_, _, cx| {
+                                    super::changes::open(version.clone(), changes.clone(), cx)
+                                }),
+                        ),
+                    )
+                }),
+        )
         .child(
             h_flex()
                 .flex_none()
